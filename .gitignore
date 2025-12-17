@@ -1,0 +1,43 @@
+# Gradle generated files
+.gradle/
+build/
+**/build/
+
+# Local configuration files
+local.properties
+.idea/
+*.iml
+
+# Android Studio captures & caches
+/captures/
+/.externalNativeBuild/
+
+# Kotlin/Java artifacts
+*.class
+*.log
+*.hprof
+*.orig
+
+# Archives and packages
+*.apk
+*.ap_
+*.aab
+*.zip
+*.jar
+*.war
+*.ear
+
+# Native artifacts
+*.dex
+*.so
+*.obj
+
+# Keystores and sensitive binaries
+*.keystore
+*.jks
+keystore.jks
+admob.properties
+
+# Misc
+.DS_Store
+Thumbs.db

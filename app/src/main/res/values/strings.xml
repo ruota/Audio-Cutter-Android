@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">AudioCutter</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_select_file">Select file</string>
+    <string name="hero_title">Cut and personalize</string>
+    <string name="hero_subtitle">Create ringtones, notifications, and loops in a few taps.</string>
+    <string name="clip_current">Current clip</string>
+    <string name="no_file">No file selected</string>
+    <string name="duration_label">Duration: %1$s</string>
+    <string name="output_label">Output: %1$s</string>
+    <string name="format_quality_title">Output</string>
+    <string name="format_title">Format</string>
+    <string name="quality_title">Quality</string>
+    <string name="waveform_title">Edit</string>
+    <string name="waveform_loading">Loading waveform...</string>
+    <string name="waveform_unavailable">Waveform not available for this file</string>
+    <string name="full_screen_ad">Advertisement</string>
+    <string name="conversion_done_title">Conversion complete</string>
+    <string name="conversion_done_message">Saved to:\n%1$s</string>
+    <string name="close">Close</string>
+    <string name="save_to_device">Save to device</string>
+    <string name="save_success">File saved to chosen location</string>
+    <string name="save_failed">Save failed: %1$s</string>
+    <string name="range_start">Start</string>
+    <string name="range_end">End</string>
+    <string name="import_audio">Import audio</string>
+    <string name="listen">Listen</string>
+    <string name="stop_preview">Stop preview</string>
+    <string name="trim_audio">Trim audio</string>
+    <string name="trimming">Trimming...</string>
+    <string name="clip_saved_title">Clip saved</string>
+    <string name="speed_title">Speed: %1$s</string>
+    <string name="speed_hint">Adjust playback/conversion speed from 0.1x up to 4x.</string>
+</resources>

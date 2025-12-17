@@ -1,0 +1,6 @@
+# Copy this file to `admob.properties` and replace the placeholders with your own AdMob IDs.
+# The real `admob.properties` file should never be committed.
+BANNER_AD_UNIT_ID=ca-app-pub-2306031288390302/5943685681
+BANNER_AD_UNIT_ID_DEBUG=ca-app-pub-3940256099942544/6300978111
+INTERSTITIAL_AD_UNIT_ID=ca-app-pub-2306031288390302/1773448337
+INTERSTITIAL_AD_UNIT_ID_DEBUG=ca-app-pub-3940256099942544/1033173712
