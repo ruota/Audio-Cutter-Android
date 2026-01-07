@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class OutputFormat(val extension: String, val label: String) {
-    M4A("m4a", "AAC (m4a)"),
+    M4A("m4a", "AAC"),
     MP3("mp3", "MP3"),
     OGG("ogg", "OGG"),
     FLAC("flac", "FLAC"),
@@ -41,10 +41,12 @@ data class AudioUiState(
     val endMs: Long = 0L,
     val isProcessing: Boolean = false,
     val isPlaying: Boolean = false,
+    val isWaveformLoading: Boolean = false,
     val message: String? = null,
     val trimmedOutput: Uri? = null,
-    val outputFormat: OutputFormat = OutputFormat.MP3,
+    val outputFormat: OutputFormat = OutputFormat.M4A,
     val quality: QualityPreset = QualityPreset.HIGH,
+    val supportedFormats: List<OutputFormat> = listOf(OutputFormat.M4A, OutputFormat.WAV),
     val waveform: List<Float> = emptyList(),
     val playbackPositionMs: Long = 0L,
     val lastSavedPath: String? = null,
@@ -63,6 +65,25 @@ class AudioCutterViewModel(
     private var mediaPlayer: MediaPlayer? = null
     private var positionJob: Job? = null
 
+    init {
+        viewModelScope.launch {
+            val formats = withContext(Dispatchers.IO) {
+                trimProcessor.supportedFormats()
+            }
+            if (formats.isNotEmpty()) {
+                val safeFormat = if (uiState.outputFormat in formats) {
+                    uiState.outputFormat
+                } else {
+                    formats.first()
+                }
+                uiState = uiState.copy(
+                    supportedFormats = formats,
+                    outputFormat = safeFormat
+                )
+            }
+        }
+    }
+
     fun onAudioPicked(uri: Uri, context: Context) {
         val resolver = context.contentResolver
         val durationMs = loadDurationMs(resolver, uri)
@@ -79,7 +100,8 @@ class AudioCutterViewModel(
             waveform = emptyList(),
             playbackPositionMs = 0L,
             message = "File ready: $fileName",
-            speed = 1.0f
+            speed = 1.0f,
+            isWaveformLoading = true
         )
 
         // Carica la forma d'onda in background
@@ -103,6 +125,10 @@ class AudioCutterViewModel(
         val format = uiState.outputFormat
         val quality = uiState.quality
         val speed = uiState.speed
+        if (format !in uiState.supportedFormats) {
+            uiState = uiState.copy(message = "Output format not supported in this build")
+            return
+        }
 
         uiState = uiState.copy(isProcessing = true, message = "Trimming...")
         viewModelScope.launch {
@@ -134,7 +160,11 @@ class AudioCutterViewModel(
     }
 
     fun updateFormat(format: OutputFormat) {
-        uiState = uiState.copy(outputFormat = format)
+        if (format in uiState.supportedFormats) {
+            uiState = uiState.copy(outputFormat = format)
+        } else {
+            uiState = uiState.copy(message = "Output format not supported in this build")
+        }
     }
 
     fun updateQuality(preset: QualityPreset) {
@@ -167,18 +197,26 @@ class AudioCutterViewModel(
     }
 
     private fun loadWaveform(context: Context, uri: Uri) {
+        uiState = uiState.copy(isWaveformLoading = true)
         viewModelScope.launch {
             val wave = runCatching {
                 withContext(Dispatchers.IO) {
-                    trimProcessor.generateWaveform(context, uri)
+                    trimProcessor.generateWaveform(context, uri, 160)
                 }
             }.getOrElse {
                 emptyList()
             }
             if (wave.isEmpty()) {
-                uiState = uiState.copy(waveform = wave, message = "Waveform not available for this file")
+                uiState = uiState.copy(
+                    waveform = wave,
+                    isWaveformLoading = false,
+                    message = "Waveform not available for this file"
+                )
             } else {
-                uiState = uiState.copy(waveform = wave)
+                uiState = uiState.copy(
+                    waveform = wave,
+                    isWaveformLoading = false
+                )
             }
         }
     }

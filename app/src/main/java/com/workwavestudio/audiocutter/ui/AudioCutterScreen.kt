@@ -8,10 +8,13 @@ import android.content.pm.PackageManager
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,25 +35,39 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Feedback
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.StarRate
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -60,6 +77,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -67,6 +85,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -79,17 +98,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.workwavestudio.audiocutter.AppPreferencesState
 import com.workwavestudio.audiocutter.AudioCutterViewModel
 import com.workwavestudio.audiocutter.AudioUiState
 import com.workwavestudio.audiocutter.OutputFormat
 import com.workwavestudio.audiocutter.QualityPreset
 import com.workwavestudio.audiocutter.R
+import com.workwavestudio.audiocutter.ThemeMode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.max
@@ -102,11 +125,51 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 fun AudioCutterScreen(
     viewModel: AudioCutterViewModel,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    appPreferences: AppPreferencesState,
+    onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uiState by remember { androidx.compose.runtime.derivedStateOf { viewModel.uiState } }
+    var showWalkthrough by remember(appPreferences.hasSeenOnboarding) {
+        mutableStateOf(!appPreferences.hasSeenOnboarding)
+    }
+    var walkthroughStepIndex by rememberSaveable { mutableStateOf(0) }
+    val walkthroughSteps = remember {
+        listOf(
+            WalkthroughStep(
+                titleRes = R.string.walkthrough_step_import_title,
+                bodyRes = R.string.walkthrough_step_import_body,
+                highlight = WalkthroughHighlight.IMPORT
+            ),
+            WalkthroughStep(
+                titleRes = R.string.walkthrough_step_trim_title,
+                bodyRes = R.string.walkthrough_step_trim_body,
+                highlight = WalkthroughHighlight.EDIT
+            ),
+            WalkthroughStep(
+                titleRes = R.string.walkthrough_step_export_title,
+                bodyRes = R.string.walkthrough_step_export_body,
+                highlight = WalkthroughHighlight.TRIM
+            ),
+            WalkthroughStep(
+                titleRes = R.string.walkthrough_step_support_title,
+                bodyRes = R.string.walkthrough_step_support_body,
+                highlight = WalkthroughHighlight.SETTINGS
+            )
+        )
+    }
+    val currentHighlight = if (showWalkthrough) {
+        walkthroughSteps.getOrNull(walkthroughStepIndex)?.highlight ?: WalkthroughHighlight.NONE
+    } else {
+        WalkthroughHighlight.NONE
+    }
+    LaunchedEffect(showWalkthrough) {
+        if (showWalkthrough) {
+            walkthroughStepIndex = 0
+        }
+    }
     var interstitialAd: InterstitialAd? by remember { mutableStateOf<InterstitialAd?>(null) }
     val loadAd: () -> Unit = {
         val request = AdRequest.Builder().build()
@@ -191,6 +254,23 @@ fun AudioCutterScreen(
             permissionLauncher.launch(permission)
         }
     }
+    val finishWalkthrough: () -> Unit = {
+        showWalkthrough = false
+        walkthroughStepIndex = 0
+        appPreferences.setOnboardingSeen(true)
+    }
+    val nextWalkthrough: () -> Unit = {
+        if (walkthroughStepIndex < walkthroughSteps.lastIndex) {
+            walkthroughStepIndex += 1
+        } else {
+            finishWalkthrough()
+        }
+    }
+    val backWalkthrough: () -> Unit = {
+        if (walkthroughStepIndex > 0) {
+            walkthroughStepIndex -= 1
+        }
+    }
     LaunchedEffect(uiState.showFullScreenBanner) {
         if (uiState.showFullScreenBanner) {
             val activity = context.findActivity()
@@ -225,11 +305,33 @@ fun AudioCutterScreen(
         )
     )
 
-    androidx.compose.material3.Scaffold(
+    Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(id = R.string.app_name)) }
+                title = { Text(text = stringResource(id = R.string.app_name)) },
+                actions = {
+                    val highlightSettings = currentHighlight == WalkthroughHighlight.SETTINGS
+                    val highlightModifier = if (highlightSettings) {
+                        Modifier
+                            .border(
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(2.dp)
+                    } else {
+                        Modifier
+                    }
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = highlightModifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.open_settings)
+                        )
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -251,7 +353,8 @@ fun AudioCutterScreen(
 
                 AudioInfoCard(
                     uiState = uiState,
-                    onPickAudio = importAudio
+                    onPickAudio = importAudio,
+                    highlight = currentHighlight == WalkthroughHighlight.IMPORT
                 )
 
                 EncodingControls(
@@ -263,14 +366,16 @@ fun AudioCutterScreen(
 
                 WaveformTrimCard(
                     uiState = uiState,
-                    onRangeChange = viewModel::onRangeChange
+                    onRangeChange = viewModel::onRangeChange,
+                    highlight = currentHighlight == WalkthroughHighlight.EDIT
                 )
 
                 ActionButtons(
                     uiState = uiState,
                     onPickAudio = importAudio,
                     onPlayPreview = { viewModel.togglePlayback(context) },
-                    onTrim = { viewModel.trim(context) }
+                    onTrim = { viewModel.trim(context) },
+                    highlight = currentHighlight == WalkthroughHighlight.TRIM
                 )
 
                 val output = uiState.trimmedOutput
@@ -280,7 +385,6 @@ fun AudioCutterScreen(
                         onSave = { saveResultLauncher.launch("clip_${System.currentTimeMillis()}.${uiState.outputFormat.extension}") }
                     )
                 }
-
                 BannerAd(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -310,6 +414,201 @@ fun AudioCutterScreen(
                 }
             }
         }
+    }
+
+    if (showWalkthrough && walkthroughSteps.isNotEmpty()) {
+        WalkthroughDialog(
+            step = walkthroughSteps[walkthroughStepIndex],
+            stepIndex = walkthroughStepIndex,
+            totalSteps = walkthroughSteps.size,
+            onNext = nextWalkthrough,
+            onBack = backWalkthrough,
+            onSkip = finishWalkthrough
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun SettingsScreen(
+    snackbarHostState: SnackbarHostState,
+    appPreferences: AppPreferencesState,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val supportEmail = stringResource(R.string.support_email)
+    val feedbackSubject = stringResource(R.string.feedback_subject)
+    val appStoreUrl = stringResource(R.string.app_store_url)
+    val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
+    val termsUrl = stringResource(R.string.terms_url)
+    val communityUrl = stringResource(R.string.community_url)
+    val privacyPolicyText = if (supportEmail.isBlank()) {
+        stringResource(R.string.privacy_policy_text_no_email)
+    } else {
+        stringResource(R.string.privacy_policy_text, supportEmail)
+    }
+    val termsText = stringResource(R.string.terms_of_service_text)
+    val helpText = if (supportEmail.isBlank()) {
+        stringResource(R.string.help_support_text_no_email)
+    } else {
+        stringResource(R.string.help_support_text)
+    }
+    val communityText = stringResource(R.string.community_text)
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
+    var showTerms by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var showCommunity by remember { mutableStateOf(false) }
+
+    val showSnackbar: (String) -> Unit = { message ->
+        scope.launch {
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+    val openUrl: (String) -> Unit = { url ->
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) {
+            showSnackbar(context.getString(R.string.link_missing))
+        } else {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(trimmed))
+            runCatching { context.startActivity(intent) }
+                .onFailure { showSnackbar(context.getString(R.string.link_open_failed)) }
+        }
+    }
+    val openPlayStore: () -> Unit = {
+        val packageId = context.packageName
+        val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageId"))
+        if (runCatching { context.startActivity(marketIntent) }.isFailure) {
+            openUrl(appStoreUrl)
+        }
+    }
+    val sendFeedback: () -> Unit = {
+        if (supportEmail.trim().isEmpty()) {
+            openPlayStore()
+            showSnackbar(context.getString(R.string.feedback_store_message))
+        } else {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:$supportEmail")
+                putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
+            }
+            runCatching { context.startActivity(intent) }
+                .onFailure { showSnackbar(context.getString(R.string.link_open_failed)) }
+        }
+    }
+
+    val gradientBackground = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            MaterialTheme.colorScheme.background,
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+        )
+    )
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                title = { Text(text = stringResource(R.string.settings_support_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.close)
+                        )
+                    }
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradientBackground)
+                .padding(padding)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SettingsSupportCard(
+                    themeMode = appPreferences.themeMode,
+                    onThemeModeChange = appPreferences.setThemeMode,
+                    onOpenPrivacyPolicy = { showPrivacyPolicy = true },
+                    onOpenTerms = { showTerms = true },
+                    onOpenHelp = { showHelp = true },
+                    onSendFeedback = sendFeedback,
+                    onRateApp = openPlayStore,
+                    onCheckUpdates = openPlayStore,
+                    onJoinCommunity = { showCommunity = true }
+                )
+            }
+        }
+    }
+
+    if (showPrivacyPolicy) {
+        val hasPrivacyUrl = privacyPolicyUrl.isNotBlank()
+        InfoDialog(
+            title = stringResource(R.string.privacy_policy_title),
+            body = privacyPolicyText,
+            primaryActionLabel = if (hasPrivacyUrl) stringResource(R.string.open_in_browser) else null,
+            onPrimaryAction = if (hasPrivacyUrl) {
+                {
+                    openUrl(privacyPolicyUrl)
+                    showPrivacyPolicy = false
+                }
+            } else {
+                null
+            },
+            onDismiss = { showPrivacyPolicy = false }
+        )
+    }
+
+    if (showTerms) {
+        val hasTermsUrl = termsUrl.isNotBlank()
+        InfoDialog(
+            title = stringResource(R.string.terms_title),
+            body = termsText,
+            primaryActionLabel = if (hasTermsUrl) stringResource(R.string.open_in_browser) else null,
+            onPrimaryAction = if (hasTermsUrl) {
+                {
+                    openUrl(termsUrl)
+                    showTerms = false
+                }
+            } else {
+                null
+            },
+            onDismiss = { showTerms = false }
+        )
+    }
+
+    if (showHelp) {
+        InfoDialog(
+            title = stringResource(R.string.help_title),
+            body = helpText,
+            onDismiss = { showHelp = false }
+        )
+    }
+
+    if (showCommunity) {
+        val hasCommunityUrl = communityUrl.isNotBlank()
+        InfoDialog(
+            title = stringResource(R.string.community_title),
+            body = communityText,
+            primaryActionLabel = if (hasCommunityUrl) stringResource(R.string.open_in_browser) else null,
+            onPrimaryAction = if (hasCommunityUrl) {
+                {
+                    openUrl(communityUrl)
+                    showCommunity = false
+                }
+            } else {
+                null
+            },
+            onDismiss = { showCommunity = false }
+        )
     }
 }
 
@@ -364,14 +663,16 @@ private fun HeroCard() {
 @Composable
 private fun AudioInfoCard(
     uiState: AudioUiState,
-    onPickAudio: () -> Unit
+    onPickAudio: () -> Unit,
+    highlight: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
-        )
+        ),
+        border = if (highlight) BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary) else null
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -428,7 +729,8 @@ private fun AudioInfoCard(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun WaveformTrimCard(
     uiState: AudioUiState,
-    onRangeChange: (ClosedFloatingPointRange<Float>) -> Unit
+    onRangeChange: (ClosedFloatingPointRange<Float>) -> Unit,
+    highlight: Boolean
 ) {
     val range = uiState.startMs.toFloat()..uiState.endMs.toFloat()
     val maxRange = uiState.durationMs.takeIf { it > 0 }?.toFloat() ?: 1_000f
@@ -455,7 +757,8 @@ private fun WaveformTrimCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
-        )
+        ),
+        border = if (highlight) BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary) else null
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -465,21 +768,31 @@ private fun WaveformTrimCard(
                 text = stringResource(R.string.waveform_title),
                 fontWeight = FontWeight.SemiBold
             )
-            if (uiState.waveform.isEmpty()) {
-            } else {
-                WaveformView(
-                    amplitudes = uiState.waveform,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    selectionColor = MaterialTheme.colorScheme.primary,
-                    unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    playheadColor = MaterialTheme.colorScheme.tertiary,
-                    selectionRange = uiState.startMs.toFloat()..uiState.endMs.toFloat(),
-                    positionMs = if (uiState.isPlaying) uiState.playbackPositionMs else uiState.startMs,
-                    durationMs = uiState.durationMs
-                )
+            when {
+                uiState.uri == null -> {
+                    WaveformPlaceholder(text = stringResource(R.string.waveform_import_hint))
+                }
+                uiState.isWaveformLoading -> {
+                    WaveformPlaceholder(text = stringResource(R.string.waveform_loading))
+                }
+                uiState.waveform.isEmpty() -> {
+                    WaveformPlaceholder(text = stringResource(R.string.waveform_unavailable))
+                }
+                else -> {
+                    WaveformView(
+                        amplitudes = uiState.waveform,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        selectionColor = MaterialTheme.colorScheme.primary,
+                        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        playheadColor = MaterialTheme.colorScheme.tertiary,
+                        selectionRange = uiState.startMs.toFloat()..uiState.endMs.toFloat(),
+                        positionMs = if (uiState.isPlaying) uiState.playbackPositionMs else uiState.startMs,
+                        durationMs = uiState.durationMs
+                    )
+                }
             }
             RangeSlider(
                 value = range,
@@ -557,7 +870,7 @@ private fun EncodingControls(
             )
             OptionChipsRow(
                 title = stringResource(R.string.format_title),
-                options = OutputFormat.values().toList(),
+                options = uiState.supportedFormats,
                 selected = uiState.outputFormat,
                 label = { it.label },
                 onSelect = onFormatChange
@@ -654,6 +967,24 @@ private fun WaveformView(
     }
 }
 
+@Composable
+private fun WaveformPlaceholder(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
@@ -704,10 +1035,23 @@ private fun ActionButtons(
     uiState: AudioUiState,
     onPickAudio: () -> Unit,
     onPlayPreview: () -> Unit,
-    onTrim: () -> Unit
+    onTrim: () -> Unit,
+    highlight: Boolean
 ) {
+    val highlightModifier = if (highlight) {
+        Modifier
+            .border(
+                BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary),
+                RoundedCornerShape(16.dp)
+            )
+            .padding(12.dp)
+    } else {
+        Modifier
+    }
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(highlightModifier),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
@@ -758,6 +1102,256 @@ private fun ActionButtons(
 }
 
 @Composable
+private fun SettingsSupportCard(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
+    onOpenTerms: () -> Unit,
+    onOpenHelp: () -> Unit,
+    onSendFeedback: () -> Unit,
+    onRateApp: () -> Unit,
+    onCheckUpdates: () -> Unit,
+    onJoinCommunity: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.settings_support_title),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp
+            )
+
+            Text(text = stringResource(R.string.appearance_title), fontWeight = FontWeight.SemiBold)
+            val isSystemTheme = themeMode == ThemeMode.SYSTEM
+            val isDarkTheme = themeMode == ThemeMode.DARK
+            SettingsSwitchRow(
+                title = stringResource(R.string.theme_follow_system),
+                subtitle = stringResource(R.string.theme_follow_system_desc),
+                checked = isSystemTheme,
+                onCheckedChange = { checked ->
+                    onThemeModeChange(if (checked) ThemeMode.SYSTEM else ThemeMode.LIGHT)
+                }
+            )
+            SettingsSwitchRow(
+                title = stringResource(R.string.theme_dark_mode),
+                subtitle = stringResource(R.string.theme_dark_mode_desc),
+                checked = isDarkTheme,
+                enabled = !isSystemTheme,
+                onCheckedChange = { checked ->
+                    onThemeModeChange(if (checked) ThemeMode.DARK else ThemeMode.LIGHT)
+                }
+            )
+            Divider()
+
+            Text(text = stringResource(R.string.legal_title), fontWeight = FontWeight.SemiBold)
+            SettingsActionRow(
+                icon = Icons.Default.PrivacyTip,
+                title = stringResource(R.string.open_privacy_policy),
+                onClick = onOpenPrivacyPolicy
+            )
+            SettingsActionRow(
+                icon = Icons.Default.Description,
+                title = stringResource(R.string.open_terms),
+                onClick = onOpenTerms
+            )
+
+            Divider()
+
+            Text(text = stringResource(R.string.support_title), fontWeight = FontWeight.SemiBold)
+            SettingsActionRow(
+                icon = Icons.Default.HelpOutline,
+                title = stringResource(R.string.open_help),
+                onClick = onOpenHelp
+            )
+            SettingsActionRow(
+                icon = Icons.Default.Feedback,
+                title = stringResource(R.string.open_feedback),
+                onClick = onSendFeedback
+            )
+            SettingsActionRow(
+                icon = Icons.Default.StarRate,
+                title = stringResource(R.string.open_rate),
+                onClick = onRateApp
+            )
+            SettingsActionRow(
+                icon = Icons.Default.Update,
+                title = stringResource(R.string.open_updates),
+                onClick = onCheckUpdates
+            )
+            SettingsActionRow(
+                icon = Icons.Default.Groups,
+                title = stringResource(R.string.open_community),
+                onClick = onJoinCommunity
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsActionRow(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(text = title, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.alpha(0.8f)
+                )
+            }
+            Switch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = onCheckedChange
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun InfoDialog(
+    title: String,
+    body: String,
+    primaryActionLabel: String? = null,
+    onPrimaryAction: (() -> Unit)? = null,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = { Text(text = title) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = stringResource(R.string.close)
+                            )
+                        }
+                    },
+                    actions = {
+                        if (primaryActionLabel != null && onPrimaryAction != null) {
+                            TextButton(onClick = onPrimaryAction) {
+                                Text(text = primaryActionLabel)
+                            }
+                        }
+                    }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Text(text = body, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalkthroughDialog(
+    step: WalkthroughStep,
+    stepIndex: Int,
+    totalSteps: Int,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val isLastStep = stepIndex == totalSteps - 1
+    AlertDialog(
+        onDismissRequest = onSkip,
+        title = { Text(text = stringResource(step.titleRes)) },
+        text = { Text(text = stringResource(step.bodyRes)) },
+        confirmButton = {
+            TextButton(onClick = onNext) {
+                Text(
+                    text = stringResource(
+                        if (isLastStep) R.string.walkthrough_finish else R.string.walkthrough_next
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (stepIndex > 0) {
+                    TextButton(onClick = onBack) {
+                        Text(text = stringResource(R.string.walkthrough_back))
+                    }
+                }
+                TextButton(onClick = onSkip) {
+                    Text(text = stringResource(R.string.walkthrough_skip))
+                }
+            }
+        }
+    )
+}
+
+@Composable
 private fun TimePill(label: String, value: String) {
     Column(
         horizontalAlignment = Alignment.Start
@@ -797,6 +1391,20 @@ private fun StatusBadge(text: String, color: Color) {
         overflow = TextOverflow.Ellipsis
     )
 }
+
+private enum class WalkthroughHighlight {
+    NONE,
+    IMPORT,
+    EDIT,
+    TRIM,
+    SETTINGS
+}
+
+private data class WalkthroughStep(
+    @StringRes val titleRes: Int,
+    @StringRes val bodyRes: Int,
+    val highlight: WalkthroughHighlight
+)
 
 @Composable
 private fun OutputCard(output: Uri, onSave: () -> Unit) {

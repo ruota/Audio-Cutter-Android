@@ -35,6 +35,9 @@ AudioCutter is an Android-first audio trimmer that lets you import a clip, previ
 5. **Documentation**
    - `docs/USER_GUIDE.md`: step-by-step instructions for end users and QA team expectations.
    - `docs/DEVELOPER_GUIDE.md`: environment setup, dependency notes, architecture overview, and release reminders.
+   - `docs/STORE_LISTING.md`: ASO-friendly Play Store listing draft and keyword ideas.
+   - `docs/PRIVACY_POLICY.md`: privacy policy text you can publish on your site.
+   - `docs/TERMS_OF_SERVICE.md`: terms of service text for publishing.
 
 ## App structure
 - `AudioCutterViewModel` handles UI state, playback via `MediaPlayer`, trimming requests and waveform generation.
@@ -47,7 +50,7 @@ AudioCutter is an Android-first audio trimmer that lets you import a clip, previ
 ## Customization notes
 - Keep your real AdMob units in `admob.properties` (gitignored). Copy `admob.properties.example`, populate the four keys for production (`BANNER_AD_UNIT_ID`, `INTERSTITIAL_AD_UNIT_ID`) and debug (`BANNER_AD_UNIT_ID_DEBUG`, `INTERSTITIAL_AD_UNIT_ID_DEBUG`), and keep the resulting file private—the build script loads these values automatically.
 - To switch to your own AdMob credentials, update `BANNER_AD_UNIT_ID` and `INTERSTITIAL_AD_UNIT_ID` in the `release` and `debug` build types inside `app/build.gradle`.
-- The FFmpeg dependency currently pulls `com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0`; uncomment the local `ffmpeg-kit-full-gpl-6.0-2.LTS.aar` block if you prefer the full GPL build.
+- The FFmpeg dependency currently pulls `com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0`. If you drop `app/libs/ffmpeg-kit-16kb-libshine.aar` in place, Gradle will use it to enable MP3 via libshine. You can also enable MP3 via libmp3lame (standalone NDK) by placing `libmp3lame.so` in `app/src/main/jniLibs/<abi>/` and the `lame.h` header in `app/src/main/cpp/include/lame/`. Uncomment the local `ffmpeg-kit-full-gpl-6.0-2.LTS.aar` block if you prefer the full GPL build.
 - Keep the `keystore.jks` file in a secure place and rotate the passwords before publishing; update the signing config if the keystore moves or the alias changes.
 
 ## License

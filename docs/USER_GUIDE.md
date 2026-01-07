@@ -35,6 +35,12 @@ AudioCutter is built for trimmed audio exports that sound natural and are ready 
 - **Speed slider** snaps to one decimal place; use multiples of 0.1x for predictable playback.
 - **Result snackbar** reuses friendly paths such as `/storage/emulated/0/Android/data/...` to help you locate files in the system file browser.
 
+## Settings & support
+- Tap the settings icon in the top bar to open **Settings & support**.
+- **Theme**: follow system or toggle dark mode on/off.
+- **Legal**: privacy policy and terms are available inside the app.
+- **Support**: open help tips, send feedback, check for updates, or join the community.
+
 ## Permissions & Monetization
 - Network permissions (`INTERNET`, `ACCESS_NETWORK_STATE`) are needed for AdMob banners and interstitials, which show during the trimming result flow.
 - The interstitial is displayed once per export; if the ad fails to load, trimming still reports success and the app resets the banner hook.

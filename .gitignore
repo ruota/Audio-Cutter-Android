@@ -2,6 +2,7 @@
 .gradle/
 build/
 **/build/
+.cxx/
 
 # Local configuration files
 local.properties
@@ -36,6 +37,7 @@ local.properties
 *.keystore
 *.jks
 keystore.jks
+keystore.properties
 admob.properties
 
 # Misc

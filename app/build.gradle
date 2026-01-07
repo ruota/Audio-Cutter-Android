@@ -10,6 +10,13 @@ if (admobPropertiesFile.exists()) {
     admobPropertiesFile.withInputStream { stream -> admobProperties.load(stream) }
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { stream -> keystoreProperties.load(stream) }
+}
+def hasKeystoreConfig = keystorePropertiesFile.exists()
+
 def getAdUnit = { key, fallback ->
     admobProperties.getProperty(key) ?: fallback
 }
@@ -20,16 +27,26 @@ def releaseInterstitialAdUnitId = getAdUnit("INTERSTITIAL_AD_UNIT_ID", "ca-app-p
 def debugInterstitialAdUnitId = getAdUnit("INTERSTITIAL_AD_UNIT_ID_DEBUG", "ca-app-pub-3940256099942544/1033173712")
 
 android {
-    namespace "com.workwavestudio.audiocutter"
-    compileSdk 35
+    signingConfigs {
+        release {
+            if (hasKeystoreConfig) {
+                storeFile = file(keystoreProperties.getProperty("storeFile", "keystore.jks"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+    namespace = "com.workwavestudio.audiocutter"
+    compileSdk = 35
 
     defaultConfig {
-        applicationId "com.workwavestudio.audiocutter"
+        applicationId = "com.workwavestudio.audiocutter"
         // Min API abbassata per massima compatibilità con Compose/ffmpeg-kit
-        minSdk 24
-        targetSdk 35
-        versionCode 1
-        versionName "1.0.0"
+        minSdk = 24
+        targetSdk = 35
+        versionCode = 3
+        versionName = "1.0.3"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -38,10 +55,12 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (hasKeystoreConfig) {
+                signingConfig = signingConfigs.release
+            }
             buildConfigField "String", "BANNER_AD_UNIT_ID", "\"${releaseBannerAdUnitId}\""
             buildConfigField "String", "INTERSTITIAL_AD_UNIT_ID", "\"${releaseInterstitialAdUnitId}\""
         }
@@ -52,8 +71,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -62,25 +81,36 @@ android {
         compose = true
         buildConfig = true
     }
+    sourceSets {
+        main {
+            jniLibs.srcDirs += ["src/main/cpp/jniLibs"]
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
     }
     lint {
-        abortOnError false
-        checkReleaseBuilds false
+        abortOnError = false
+        checkReleaseBuilds = false
     }
     // Per ridurre dimensioni: APK per ABI, no universal
     splits {
         abi {
-            enable false
+            enable = false
             reset()
             include 'arm64-v8a', 'armeabi-v7a'
-            universalApk false
+            universalApk = false
         }
     }
     packagingOptions {
         jniLibs {
-            useLegacyPackaging true
+            useLegacyPackaging = true
             pickFirsts += ["**/libc++_shared.so"]
         }
         resources {
@@ -105,9 +135,9 @@ dependencies {
     implementation "androidx.compose.foundation:foundation"
     implementation "androidx.navigation:navigation-compose:2.5.3"
     implementation "com.google.android.material:material:1.11.0"
+    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
     // Usa l'AAR locale di ffmpeg-kit full GPL 6.0.2.LTS in app/libs
     //implementation files("libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar")
-    implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0'
     implementation "com.arthenica:smart-exception-java:0.2.1"
     
     implementation "com.google.android.gms:play-services-ads:22.6.0"
