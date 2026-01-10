@@ -45,11 +45,14 @@ android {
         // Min API abbassata per massima compatibilità con Compose/ffmpeg-kit
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.3"
+        versionCode = 4
+        versionName = "1.0.4"
 
         vectorDrawables {
             useSupportLibrary = true
+        }
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
         }
     }
 
