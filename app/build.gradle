@@ -21,9 +21,9 @@ def getAdUnit = { key, fallback ->
     admobProperties.getProperty(key) ?: fallback
 }
 
-def releaseBannerAdUnitId = getAdUnit("BANNER_AD_UNIT_ID", "ca-app-pub-2306031288390302/5943685681")
+def releaseBannerAdUnitId = getAdUnit("BANNER_AD_UNIT_ID", "ca-app-pub-2306031288390302/1773448337")
 def debugBannerAdUnitId = getAdUnit("BANNER_AD_UNIT_ID_DEBUG", "ca-app-pub-3940256099942544/6300978111")
-def releaseInterstitialAdUnitId = getAdUnit("INTERSTITIAL_AD_UNIT_ID", "ca-app-pub-2306031288390302/1773448337")
+def releaseInterstitialAdUnitId = getAdUnit("INTERSTITIAL_AD_UNIT_ID", "ca-app-pub-2306031288390302/5943685681")
 def debugInterstitialAdUnitId = getAdUnit("INTERSTITIAL_AD_UNIT_ID_DEBUG", "ca-app-pub-3940256099942544/1033173712")
 
 android {
@@ -45,8 +45,8 @@ android {
         // Min API abbassata per massima compatibilità con Compose/ffmpeg-kit
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.4"
+        versionCode = 5
+        versionName = "1.0.5"
 
         vectorDrawables {
             useSupportLibrary = true
